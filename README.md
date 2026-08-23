@@ -11,6 +11,8 @@ This private repository stores the local deployment wrapper for DeepSeek Harness
 
 The launcher opens a command window, reports whether the service is enabled and shows the port. When the service is ready, it opens the browser at `http://127.0.0.1:18080`.
 
+The shortcut uses the official black whale favicon from the upstream Harness web app: https://github.com/deepseek-ai/deepseek-harness/blob/master/apps/web/public/favicon.svg
+
 ## Update later
 
 Run `powershell -ExecutionPolicy Bypass -File .\update.ps1` to pull the latest repository files and reinstall the locked dependencies.

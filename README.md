@@ -4,10 +4,12 @@ This private repository stores the local deployment wrapper for DeepSeek Harness
 
 ## Deploy on another Windows computer
 
-1. Install Node.js 20 or newer.
-2. Clone this repository.
-3. Run `powershell -ExecutionPolicy Bypass -File .\install.ps1`.
-4. Run `start-deepseek-harness.cmd`.
+1. Clone this repository or extract its ZIP archive into any folder.
+2. Double-click `install.cmd`.
+3. If Node.js or Corepack is missing, follow the prompt to install the missing environment.
+4. Open Start Menu and launch `DeepSeek Harness`.
+
+The installer uses paths relative to its own directory, installs the locked dependencies, and creates or replaces the Start Menu shortcut. The first installation needs an internet connection for Node.js/Corepack or package downloads. Node.js 20 or newer and Windows PowerShell are required.
 
 The launcher opens a command window, reports whether the service is enabled and shows the port. When the service is ready, it opens the browser at `http://127.0.0.1:18080`.
 

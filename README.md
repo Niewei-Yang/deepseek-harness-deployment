@@ -1,44 +1,44 @@
-# DeepSeek Harness deployment
+# DeepSeek Harness 部署
 
-This repository stores the Windows deployment wrapper for DeepSeek Harness. It does not contain personal profiles, API keys, session data, or `node_modules`.
+本仓库保存 DeepSeek Harness 的 Windows 部署封装。它不包含个人配置、API 密钥、会话数据或 `node_modules`。
 
-## Deployment snapshot (2026-09-17)
+## 部署快照（2026-09-17）
 
-- CLI: `@deepseek-ai/dsh` **0.1.5-rc.1**, installed from npm.
-- Package manager: **pnpm 8.9.0**, pinned in `package.json`.
-- Full dependency versions are recorded in `pnpm-lock.yaml`; some Harness packages resolve to `0.1.5-rc.2`.
-- Verified locally with **Node.js 24.14.1** on Windows. The current lockfile includes dependencies requiring Node.js **22.19.0 or newer**.
-- Web profile, bound to `127.0.0.1:18080`, with token authentication.
+- CLI：`@deepseek-ai/dsh` **0.1.5-rc.1**，从 npm 安装。
+- 包管理器：**pnpm 8.9.0**，版本固定在 `package.json` 中。
+- 完整的依赖版本记录在 `pnpm-lock.yaml`；部分 Harness 包解析为 `0.1.5-rc.2`。
+- 已在 Windows + **Node.js 24.14.1** 上完成本地验证。当前 lockfile 包含需要 Node.js **22.19.0 或更高版本**的依赖。
+- Web 配置绑定到 `127.0.0.1:18080`，并启用令牌（token）认证。
 
-## Deploy on another Windows computer
+## 在另一台 Windows 电脑上部署
 
-1. Clone this repository or extract its ZIP archive into any folder.
-2. Double-click `install.cmd`.
-3. If Node.js or Corepack is missing, follow the prompt to install the missing environment.
-4. Open Start Menu and launch `DeepSeek Harness`.
+1. 克隆本仓库，或将其 ZIP 压缩包解压到任意文件夹。
+2. 双击 `install.cmd`。
+3. 如果缺少 Node.js 或 Corepack，请按提示安装缺失的环境。
+4. 打开开始菜单，启动 `DeepSeek Harness`。
 
-The installer uses paths relative to its own directory, installs the locked dependencies, and creates or replaces the Start Menu shortcut. The first installation needs an internet connection for Node.js/Corepack or package downloads. Node.js 22.19.0 or newer and Windows PowerShell are required; Node.js 24.14.1 is the locally verified runtime. Use Corepack to select the pinned pnpm version, or install pnpm 8.9.0 yourself.
+安装程序使用相对于自身所在目录的路径，安装锁定版本的依赖，并创建或替换开始菜单快捷方式。首次安装需要联网，用于获取 Node.js/Corepack 或下载依赖包。需要 Node.js 22.19.0 或更高版本以及 Windows PowerShell；Node.js 24.14.1 是本地验证过的运行时。请使用 Corepack 选择固定的 pnpm 版本，或自行安装 pnpm 8.9.0。
 
-The launcher opens a command window, reports whether the service is enabled and shows the port. When needed, it starts the service in the background. Once ready, it reads the token URL from `dsh-service.stdout.log`, verifies it, and opens it in the browser. A bare request to `http://127.0.0.1:18080` may return HTTP 401; use the complete URL shown by the launcher, including `?token=...`.
+启动器会打开一个命令窗口，报告服务是否已启用并显示端口。需要时，它会在后台启动服务。服务就绪后，它会从 `dsh-service.stdout.log` 读取带令牌的 URL，校验后使用浏览器打开。直接访问 `http://127.0.0.1:18080` 可能返回 HTTP 401；请使用启动器显示的完整 URL，其中包含 `?token=...`。
 
-Service output is stored in `dsh-service.stdout.log` and `dsh-service.stderr.log` beside the launcher. The output log contains the access token: keep it local. Logs, dependency backups, temporary work files, `.env` files, and local `.dsh` data are ignored by Git. Configure your own model credentials and profiles on each computer; these are not migrated by this repository.
+服务输出保存在启动器同目录下的 `dsh-service.stdout.log` 和 `dsh-service.stderr.log` 中。输出日志包含访问令牌：请仅保留在本地。日志、依赖备份、临时工作文件、`.env` 文件以及本地 `.dsh` 数据均被 Git 忽略。请在每台电脑上自行配置模型凭据和配置；本仓库不会迁移这些内容。
 
-The shortcut uses the official black whale favicon from the upstream Harness web app: https://github.com/deepseek-ai/deepseek-harness/blob/master/apps/web/public/favicon.svg
+快捷方式使用上游 Harness Web 应用中的官方黑色鲸鱼图标：https://github.com/deepseek-ai/deepseek-harness/blob/master/apps/web/public/favicon.svg
 
-## Update later
+## 后续更新
 
-Run `powershell -ExecutionPolicy Bypass -File .\update.ps1` to pull the latest repository files and reinstall the locked dependencies.
+运行 `powershell -ExecutionPolicy Bypass -File .\update.ps1` 以拉取仓库的最新文件并重新安装锁定版本的依赖。
 
-To upgrade the DeepSeek Harness release, update the exact npm version in `package.json`, run `corepack pnpm install` to regenerate `pnpm-lock.yaml`, test locally, commit, and push. Normal deployments use `--frozen-lockfile` and do not resolve new dependency versions.
+如需升级 DeepSeek Harness 版本，请修改 `package.json` 中的确切 npm 版本号，运行 `corepack pnpm install` 重新生成 `pnpm-lock.yaml`，在本地测试后提交并推送。常规部署使用 `--frozen-lockfile`，不会解析新的依赖版本。
 
-The old `dsh-0.1.0-rc.7.tgz` is retained as a historical artifact; it is no longer used by the current deployment.
+旧的 `dsh-0.1.0-rc.7.tgz` 作为历史产物保留；当前部署已不再使用它。
 
-## Troubleshooting
+## 故障排查
 
-- If startup fails, inspect `dsh-service.stderr.log` locally and confirm that port 18080 is free.
-- If a running service returns 401 and its token log is missing or stale, stop that Harness process and relaunch using this wrapper to generate a fresh log.
-- After updating dependencies, restart the existing Harness process to load the updated release. `update.ps1` does not restart it automatically.
+- 如果启动失败，请在本地检查 `dsh-service.stderr.log`，并确认端口 18080 未被占用。
+- 如果正在运行的服务返回 401，且其令牌日志缺失或已过期，请停止该 Harness 进程，并使用本封装脚本重新启动，以生成新的日志。
+- 更新依赖后，请重启现有的 Harness 进程以加载更新后的版本。`update.ps1` 不会自动重启它。
 
-## Original project
+## 原项目
 
 https://github.com/deepseek-ai/deepseek-harness

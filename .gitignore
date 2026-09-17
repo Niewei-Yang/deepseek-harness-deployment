@@ -1,3 +1,9 @@
 node_modules/
+node_modules-backup*/
 .pnpm-store/
+work/
 *.log
+.env
+.env.*
+!.env.example
+.dsh/

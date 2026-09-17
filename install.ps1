@@ -1,6 +1,6 @@
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
-$nodeMinimum = [version]'20.0.0'
+$nodeMinimum = [version]'22.19.0'
 
 function Read-YesNo($prompt) {
     do {
@@ -38,7 +38,7 @@ function Get-NodeInfo {
 function Install-Node {
     $winget = Get-Command winget.exe -ErrorAction SilentlyContinue
     if (-not $winget) {
-        throw 'winget is unavailable. Install Node.js 20 or newer manually, then run install.cmd again.'
+        throw 'winget is unavailable. Install Node.js 22.19.0 or newer manually, then run install.cmd again.'
     }
 
     $nodeInfo = Get-NodeInfo
@@ -63,24 +63,24 @@ function Ensure-Node {
     if ($nodeInfo) {
         Write-Host ("Node.js $($nodeInfo.Version) is older than required $nodeMinimum.")
     } else {
-        Write-Host 'Node.js 20 or newer was not detected.'
+        Write-Host 'Node.js 22.19.0 or newer was not detected.'
     }
 
     if (-not (Read-YesNo 'Install or upgrade Node.js automatically using winget?')) {
-        throw 'Node.js 20 or newer is required.'
+        throw 'Node.js 22.19.0 or newer is required.'
     }
     Install-Node
 
     $nodeInfo = Get-NodeInfo
     if (-not $nodeInfo -or $nodeInfo.Version -lt $nodeMinimum) {
-        throw 'Node.js 20 or newer was not found after installation. Restart the terminal and run install.cmd again.'
+        throw 'Node.js 22.19.0 or newer was not found after installation. Restart the terminal and run install.cmd again.'
     }
     Write-Host ("Node.js $($nodeInfo.Version) is ready.")
 }
 
 function Ensure-Corepack {
     Refresh-Path
-    $corepack = Get-Command corepack.exe -ErrorAction SilentlyContinue
+    $corepack = Get-Command corepack.cmd -ErrorAction SilentlyContinue
     if ($corepack) {
         $pnpmVersion = (& $corepack.Source pnpm --version 2>$null | Select-Object -First 1)
         if ($pnpmVersion) {
@@ -119,7 +119,7 @@ function Ensure-Corepack {
         throw 'Corepack installation did not complete successfully.'
     }
     Refresh-Path
-    $corepack = Get-Command corepack.exe -ErrorAction SilentlyContinue
+    $corepack = Get-Command corepack.cmd -ErrorAction SilentlyContinue
     if (-not $corepack) {
         throw 'Corepack is still unavailable after installation.'
     }

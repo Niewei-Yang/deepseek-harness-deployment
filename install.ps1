@@ -1,6 +1,12 @@
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
-$nodeMinimum = [version]'22.19.0'
+$nodeMinimum = [version]'24.9.0'
+$manifest = Get-Content -LiteralPath (Join-Path $root 'package.json') -Raw | ConvertFrom-Json
+$script:PnpmSelector = [string]$manifest.packageManager
+if ($script:PnpmSelector -notmatch '^pnpm@(?<Version>\d+\.\d+\.\d+)$') {
+    throw 'package.json must pin an exact pnpm version.'
+}
+$script:PnpmVersion = $Matches.Version
 
 function Read-YesNo($prompt) {
     do {
@@ -38,7 +44,7 @@ function Get-NodeInfo {
 function Install-Node {
     $winget = Get-Command winget.exe -ErrorAction SilentlyContinue
     if (-not $winget) {
-        throw 'winget is unavailable. Install Node.js 22.19.0 or newer manually, then run install.cmd again.'
+        throw 'winget is unavailable. Install Node.js 24.9.0 or newer manually, then run install.cmd again.'
     }
 
     $nodeInfo = Get-NodeInfo
@@ -63,17 +69,17 @@ function Ensure-Node {
     if ($nodeInfo) {
         Write-Host ("Node.js $($nodeInfo.Version) is older than required $nodeMinimum.")
     } else {
-        Write-Host 'Node.js 22.19.0 or newer was not detected.'
+        Write-Host 'Node.js 24.9.0 or newer was not detected.'
     }
 
     if (-not (Read-YesNo 'Install or upgrade Node.js automatically using winget?')) {
-        throw 'Node.js 22.19.0 or newer is required.'
+        throw 'Node.js 24.9.0 or newer is required.'
     }
     Install-Node
 
     $nodeInfo = Get-NodeInfo
     if (-not $nodeInfo -or $nodeInfo.Version -lt $nodeMinimum) {
-        throw 'Node.js 22.19.0 or newer was not found after installation. Restart the terminal and run install.cmd again.'
+        throw 'Node.js 24.9.0 or newer was not found after installation. Restart the terminal and run install.cmd again.'
     }
     Write-Host ("Node.js $($nodeInfo.Version) is ready.")
 }
@@ -82,33 +88,18 @@ function Ensure-Corepack {
     Refresh-Path
     $corepack = Get-Command corepack.cmd -ErrorAction SilentlyContinue
     if ($corepack) {
-        $pnpmVersion = (& $corepack.Source pnpm --version 2>$null | Select-Object -First 1)
-        if ($pnpmVersion) {
+        $pnpmVersion = (& $corepack.Source $script:PnpmSelector --version 2>$null | Select-Object -Last 1)
+        if ($LASTEXITCODE -eq 0 -and ([string]$pnpmVersion).Trim() -eq $script:PnpmVersion) {
             $script:PackageManager = $corepack.Source
-            $script:PackageManagerPrefix = @('pnpm')
-            Write-Host 'Corepack and pnpm are ready.'
-            return
-        }
-        & $corepack.Source enable
-        if ($LASTEXITCODE -eq 0) {
-            $script:PackageManager = $corepack.Source
-            $script:PackageManagerPrefix = @('pnpm')
+            $script:PackageManagerPrefix = @($script:PnpmSelector)
             Write-Host 'Corepack and pnpm are ready.'
             return
         }
     }
 
-    $pnpm = Get-Command pnpm.cmd -ErrorAction SilentlyContinue
-    if ($pnpm) {
-        $script:PackageManager = $pnpm.Source
-        $script:PackageManagerPrefix = @()
-        Write-Host 'pnpm is ready.'
-        return
-    }
-
-    Write-Host 'Corepack and pnpm were not detected.'
-    if (-not (Read-YesNo 'Install Corepack automatically using npm?')) {
-        throw 'Corepack or pnpm is required to install dependencies.'
+    Write-Host 'Corepack is missing or cannot launch the pinned pnpm version.'
+    if (-not (Read-YesNo 'Install or repair Corepack automatically using npm?')) {
+        throw 'Corepack is required to select the pinned pnpm version.'
     }
     $npm = Get-Command npm.cmd -ErrorAction SilentlyContinue
     if (-not $npm) {
@@ -123,22 +114,37 @@ function Ensure-Corepack {
     if (-not $corepack) {
         throw 'Corepack is still unavailable after installation.'
     }
+    $pnpmVersion = (& $corepack.Source $script:PnpmSelector --version 2>$null | Select-Object -Last 1)
+    if ($LASTEXITCODE -ne 0 -or ([string]$pnpmVersion).Trim() -ne $script:PnpmVersion) {
+        throw 'Corepack could not launch the pinned pnpm version. Check the network and rerun install.cmd.'
+    }
     $script:PackageManager = $corepack.Source
-    $script:PackageManagerPrefix = @('pnpm')
+    $script:PackageManagerPrefix = @($script:PnpmSelector)
     Write-Host 'Corepack and pnpm are ready.'
 }
 
 function Install-Dependencies {
-    $arguments = @($script:PackageManagerPrefix) + @('install', '--dir', $root, '--frozen-lockfile')
+    $dependencyRoot = $root
+    $modules = Get-Item -LiteralPath (Join-Path $root 'node_modules') -ErrorAction SilentlyContinue
+    if ($modules -and $modules.LinkType -eq 'Junction') {
+        $dependencyRoot = Split-Path -Parent ([string]$modules.Target)
+    }
+    $arguments = @($script:PackageManagerPrefix) + @('install', '--dir', $dependencyRoot, '--frozen-lockfile', '--registry=https://registry.npmjs.org', '--reporter=append-only')
     & $script:PackageManager @arguments
     if ($LASTEXITCODE -ne 0) {
         throw 'Dependency installation failed. Check the network connection and run install.cmd again.'
+    }
+    $cli = Join-Path $root 'node_modules\@deepseek-ai\dsh\lib\bin.js'
+    $version = & (Get-Command node.exe -ErrorAction Stop).Source $cli --version
+    if ($LASTEXITCODE -ne 0 -or ([string]$version).Trim() -ne $manifest.dependencies.'@deepseek-ai/dsh') {
+        throw 'Installed Harness version verification failed.'
     }
     Write-Host 'DeepSeek Harness dependencies installed.'
 }
 
 function Install-Shortcut {
     $startMenu = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs'
+    New-Item -ItemType Directory -Path $startMenu -Force | Out-Null
     $shortcutPath = Join-Path $startMenu 'DeepSeek Harness.lnk'
     $launcher = Join-Path $root 'start-deepseek-harness.cmd'
     $icon = Join-Path $root 'deepseek-harness-official-black.ico'
@@ -162,6 +168,14 @@ function Install-Shortcut {
     $shortcut.WindowStyle = 1
     $shortcut.Description = 'Launch DeepSeek Harness'
     $shortcut.Save()
+
+    $updateShortcut = $shell.CreateShortcut((Join-Path $startMenu 'DeepSeek Harness Update.lnk'))
+    $updateShortcut.TargetPath = $env:ComSpec
+    $updateShortcut.Arguments = '/c call "' + (Join-Path $root 'update.cmd') + '"'
+    $updateShortcut.WorkingDirectory = $root
+    $updateShortcut.IconLocation = $icon + ',0'
+    $updateShortcut.Description = 'Check for and install the latest DeepSeek Harness release'
+    $updateShortcut.Save()
 
     $ie4uinit = Join-Path $env:SystemRoot 'System32\ie4uinit.exe'
     if (Test-Path -LiteralPath $ie4uinit) {
